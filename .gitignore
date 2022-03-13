@@ -1,0 +1,5 @@
+# "Build" is intended for build output only. Shall be ignored
+/build/
+
+# tools folder contains binary of the tool (i.e. toolchain). Shouldn't be tracked
+/tools/
