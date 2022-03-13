@@ -39,6 +39,10 @@ CORE_OBJS := $(subst $(SRC_DIR), $(OBJ_DIR), $(CORE_SRC:.S=_S.o))
 CORE_OBJS := $(subst $(SRC_DIR), $(OBJ_DIR), $(CORE_OBJS:.c=_c.o))
 CORE_OBJS := $(subst $(SRC_DIR), $(OBJ_DIR), $(CORE_OBJS:.cpp=_cpp.o))
 
+# .d files are "makefiles" with recipes telling us which headers a specific object depends on.
+DEPS := $(CORE_OBJS:.o=.d)
+DEPS += $(OBJS:.o=.d)
+
 # -D (Define) preprocessor flags
 DEFINES := $(BOARD_DEFINES)
 DFLAGS := $(addprefix -D, $(DEFINES))
@@ -78,3 +82,6 @@ clean:
 	$(RM) -r $(OBJ_DIR)/*
 	$(RM) -r $(LIB_DIR)/*
 	$(RM) -r $(TARGET_DIR)/*
+
+# Include .d makefiles. Ignore errors ("-") if they are missing (i.e. at the beginning)
+-include $(DEPS)
