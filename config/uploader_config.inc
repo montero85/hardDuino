@@ -1,0 +1,11 @@
+TOOLS_ROOT:=/home/montero85/arduino-1.8.19/hardware/tools/avr
+UPLOADER_DIR:=$(TOOLS_ROOT)/bin
+UPLOADER_CONFIG_DIR:=$(TOOLS_ROOT)/etc
+UPLOADER_CONFIG_FILE:=$(UPLOADER_CONFIG_DIR)/avrdude.conf
+
+# COM Settings
+COMPORT:=/dev/ttyACM0
+COMBAUD:=115200
+
+UPLOADER:=$(UPLOADER_DIR)/avrdude
+UPLOADERFLAGS:=-C$(UPLOADER_CONFIG_FILE) -v -p$(MMCU) -carduino -P$(COMPORT) -b$(COMBAUD) -D

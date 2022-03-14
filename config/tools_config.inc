@@ -20,4 +20,10 @@ ARFLAGS=rcs
 LD=$(TOOLS_DIR)/avr-gcc
 LDFLAGS=-Wall -Os -g -flto -fuse-linker-plugin -Wl,--gc-sections -mmcu=$(MMCU)
 
+# Print size
+PRINTSIZE:=$(TOOLS_DIR)/avr-size -A
 
+# Obj-copy to generate hex and eep
+OBjCOPY=$(TOOLS_DIR)/avr-objcopy
+OBjCOPYFLAGSEEP=-O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load --no-change-warnings --change-section-lma .eeprom=0
+OBjCOPYFLAGSHEX=-O ihex -R .eeprom

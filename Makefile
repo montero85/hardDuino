@@ -18,6 +18,9 @@ include $(CONFIG_DIR)/board_config.inc
 # Build tools and their configuration (i.e. CC, CFLAGS, CXX, CXXFLAGS)
 include $(CONFIG_DIR)/tools_config.inc
 
+# Build tools and their configuration (i.e. CC, CFLAGS, CXX, CXXFLAGS)
+include $(CONFIG_DIR)/uploader_config.inc
+
 # Generate list of objects from TARGET source files. 
 # i.e. File SRC_DIR/foo/bar.c will result into OBJ_DIR/foo/bar_c.o
 # the _c, _cpp, _S suffixes are used to allow two files to hold same name 
@@ -60,21 +63,39 @@ EXPORTED_PUBLIC_HEADERS := $(subst $(SRC_DIR), $(PUBLIC_HEADERS_DIR), $(PUBLIC_H
 INCLUDE = $(sort $(dir $(EXPORTED_PUBLIC_HEADERS))) $(dir $<)
 IFLAGS = $(addprefix -I, $(INCLUDE)) 
 
-# TODO: Control using with -v cmdline param
-VERBOSE := @
+# Passing VERBOSE=1 through command line will enable detailed build logs
+ifeq ($(VERBOSE), 1)
+	V:= 
+else
+	V := @
+endif
 
 # COOKBOOK with all the recipes
-all: $(TARGET_DIR)/$(TARGET).elf
+all: $(TARGET_DIR)/$(TARGET).elf $(TARGET_DIR)/$(TARGET).eep $(TARGET_DIR)/$(TARGET).hex
+
+.PHONY: upload
+upload: $(TARGET_DIR)/$(TARGET).elf
+	@echo "Uploading $<"
+	@echo $(UPLOADER) $(UPLOADERFLAGS) -Uflash:w:$<
+
+$(TARGET_DIR)/$(TARGET).eep: $(TARGET_DIR)/$(TARGET).elf 
+	@echo "Genereting $@"
+	$(V) $(OBjCOPY) $(OBjCOPYFLAGSEEP) $< $@
+	
+$(TARGET_DIR)/$(TARGET).hex: $(TARGET_DIR)/$(TARGET).elf
+	@echo "Genereting $@"
+	$(V) $(OBjCOPY) $(OBjCOPYFLAGSHEX) $< $@
 
 $(TARGET_DIR)/$(TARGET).elf: $(OBJS) $(LIB_DIR)/core.a
 	@echo "Linking $@ from $^"
-	$(VERBOSE) mkdir -p $(dir $@)
-	$(VERBOSE) $(LD) $(LDFLAGS) -o $@ $^ -L $(dir $@) -lm
+	$(V) mkdir -p $(dir $@)
+	$(V) $(LD) $(LDFLAGS) -o $@ $^ -L $(dir $@) -lm
+	$(V) $(PRINTSIZE) $@
 
 $(LIB_DIR)/core.a: $(CORE_OBJS)
 	@echo "Generating $@:"
-	$(VERBOSE) mkdir -p $(dir $@)
-	$(VERBOSE) $(AR) $(ARFLAGS) $@ $^
+	$(V) mkdir -p $(dir $@)
+	$(V) $(AR) $(ARFLAGS) $@ $^
 
 # Before compilation...
 $(OBJS): $(EXPORTED_PUBLIC_HEADERS)
@@ -82,27 +103,27 @@ $(OBJS): $(EXPORTED_PUBLIC_HEADERS)
 # ... copy public headers into the public header folder.
 $(PUBLIC_HEADERS_DIR)/%.h: $(SRC_DIR)/%.h
 	@echo "Exporting $< to $(dir $@)"
-	$(VERBOSE) mkdir -p $(dir $@)
-	$(VERBOSE) cp $< $(dir $@) 
+	$(V) mkdir -p $(dir $@)
+	$(V) cp $< $(dir $@) 
 
 $(OBJ_DIR)/%_c.o: $(SRC_DIR)/%.c
 	@echo "Compiling $@ from $< $(CORE_OBJ)"
-	$(VERBOSE) mkdir -p $(dir $@)
-	$(VERBOSE) $(CC) $(CFLAGS) $(DFLAGS) $(IFLAGS) $< -o $@
+	$(V) mkdir -p $(dir $@)
+	$(V) $(CC) $(CFLAGS) $(DFLAGS) $(IFLAGS) $< -o $@
 
 $(OBJ_DIR)/%_cpp.o: $(SRC_DIR)/%.cpp
 	@echo "Compiling $@ from $<"
-	$(VERBOSE) mkdir -p $(dir $@)
-	$(VERBOSE) $(CXX) $(CXXFLAGS) $(DFLAGS) $(IFLAGS) $< -o $@
+	$(V) mkdir -p $(dir $@)
+	$(V) $(CXX) $(CXXFLAGS) $(DFLAGS) $(IFLAGS) $< -o $@
 
 $(OBJ_DIR)/%_S.o: $(SRC_DIR)/%.S
 	@echo "Assembling $@ from $<"
-	$(VERBOSE) mkdir -p $(dir $@)
-	$(VERBOSE) $(AS) $(ASFLAGS) $(DFLAGS) $(IFLAGS) $< -o $@
+	$(V) mkdir -p $(dir $@)
+	$(V) $(AS) $(ASFLAGS) $(DFLAGS) $(IFLAGS) $< -o $@
 
 .PHONY: clean
 clean:
-	$(VERBOSE) $(RM) -r $(BUILD_DIR)/*
+	$(V) $(RM) -r $(BUILD_DIR)/*
 
 # Include .d makefiles. Ignore errors ("-") if they are missing (i.e. at the beginning)
 -include $(DEPS)
