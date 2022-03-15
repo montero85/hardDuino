@@ -1,4 +1,5 @@
 TARGET=blink
+BOARD=uno_wifi
 
 BUILD_DIR := build
 SRC_DIR := src
@@ -11,15 +12,10 @@ PUBLIC_HEADERS_DIR := $(BUILD_DIR)/public_headers
 # Target specific configuration (i.e. source files, public headers, ...)
 include $(TARGET).inc
 
-# Board specific configuration (i.e. board specific build define, -mmcu flag)
-# Note: at the moment, configuration is fixed to Arduino Mega WiFi. It should be made configurable.
-include $(CONFIG_DIR)/board_config.inc
-
-# Build tools and their configuration (i.e. CC, CFLAGS, CXX, CXXFLAGS)
-include $(CONFIG_DIR)/tools_config.inc
-
-# Build tools and their configuration (i.e. CC, CFLAGS, CXX, CXXFLAGS)
-include $(CONFIG_DIR)/uploader_config.inc
+# Board specific configuration. Things like board specific build define, -mmcu flag,
+# where to get the core library sources and include. This will also bring in
+# toolchains and uploader settings (i.e. CC, CCFLAGS, LD, LDFLAGS, etc.)
+include $(CONFIG_DIR)/boards/$(BOARD).inc
 
 # Generate list of objects from TARGET source files. 
 # i.e. File SRC_DIR/foo/bar.c will result into OBJ_DIR/foo/bar_c.o
@@ -28,20 +24,6 @@ include $(CONFIG_DIR)/uploader_config.inc
 OBJS := $(subst $(SRC_DIR), $(OBJ_DIR), $(SRC:.S=_s.o))
 OBJS := $(subst $(SRC_DIR), $(OBJ_DIR), $(OBJS:.c=_c.o))
 OBJS := $(subst $(SRC_DIR), $(OBJ_DIR), $(OBJS:.cpp=_cpp.o))
-
-# CORE LIBRARY: core arduino files are built as a library to mimic the .ino behaviour
-CORE_PATH := avr/core_lib
-CORE_VARIANT_PATH := avr/variants/$(VARIANT)
-CORE_PATH_OBJ_DIR := $(OBJ_DIR)/$(CORE_PATH)
-CORE_PATH_SRC_DIR := $(SRC_DIR)/$(CORE_PATH)
-# Generate list of source files composing the core lib: all *.S, *.c, *.cpp files in CORE_PATH_SRC_DIR 
-CORE_SRC = $(wildcard $(CORE_PATH_SRC_DIR)/*.S)
-CORE_SRC += $(wildcard $(CORE_PATH_SRC_DIR)/*.c)
-CORE_SRC += $(wildcard $(CORE_PATH_SRC_DIR)/*.cpp)
-
-# Core Arduino Headers are all published (despite some may be _private.h)
-PUBLIC_HEADERS += $(wildcard $(CORE_PATH_SRC_DIR)/*.h)
-PUBLIC_HEADERS += $(wildcard $(SRC_DIR)/$(CORE_VARIANT_PATH)/*.h)
 
 # Generate list of core lib objects from source files. Same as $(OBJS)
 CORE_OBJS := $(subst $(SRC_DIR), $(OBJ_DIR), $(CORE_SRC:.S=_S.o))
@@ -71,7 +53,7 @@ else
 endif
 
 # COOKBOOK with all the recipes
-all: $(TARGET_DIR)/$(TARGET).elf $(TARGET_DIR)/$(TARGET).eep $(TARGET_DIR)/$(TARGET).hex
+all: $(TARGET_DIR)/$(TARGET).elf $(TARGET_DIR)/$(TARGET).eep $(TARGET_DIR)/$(TARGET).hex $(TARGET_DIR)/$(TARGET).bin
 
 .PHONY: upload
 upload: $(TARGET_DIR)/$(TARGET).elf
@@ -86,6 +68,10 @@ $(TARGET_DIR)/$(TARGET).hex: $(TARGET_DIR)/$(TARGET).elf
 	@echo "Genereting $@"
 	$(V) $(OBjCOPY) $(OBjCOPYFLAGSHEX) $< $@
 
+$(TARGET_DIR)/$(TARGET).bin: $(TARGET_DIR)/$(TARGET).elf
+	@echo "Genereting $@"
+	$(V) $(OBjCOPY) $(OBjCOPYFLAGSBIN) $< $@
+	
 $(TARGET_DIR)/$(TARGET).elf: $(OBJS) $(LIB_DIR)/core.a
 	@echo "Linking $@ from $^"
 	$(V) mkdir -p $(dir $@)

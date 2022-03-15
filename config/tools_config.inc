@@ -27,3 +27,4 @@ PRINTSIZE:=$(TOOLS_DIR)/avr-size -A
 OBjCOPY=$(TOOLS_DIR)/avr-objcopy
 OBjCOPYFLAGSEEP=-O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load --no-change-warnings --change-section-lma .eeprom=0
 OBjCOPYFLAGSHEX=-O ihex -R .eeprom
+OBjCOPYFLAGSBIN=-O binary -R .eeprom
