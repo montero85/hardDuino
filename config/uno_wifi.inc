@@ -22,5 +22,5 @@ PUBLIC_HEADERS += $(wildcard $(CORE_PATH_SRC_DIR)/*.h)
 PUBLIC_HEADERS += $(wildcard $(SRC_DIR)/$(CORE_VARIANT_PATH)/*.h)
 
 # Include configuration for toolchain and uploader. Must be done after MMCU is defined
-include $(CONFIG_DIR)/tools_config.inc
-include $(CONFIG_DIR)/uploader_config.inc
+include $(CONFIG_DIR)/avr_tools_uno_wifi.inc
+include $(CONFIG_DIR)/uploader_uno_wifi.inc

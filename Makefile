@@ -1,5 +1,5 @@
 TARGET=blink
-BOARD=uno_wifi
+BOARD=uno_wifi_rev2
 
 BUILD_DIR := build
 SRC_DIR := src
@@ -15,7 +15,7 @@ include $(TARGET).inc
 # Board specific configuration. Things like board specific build define, -mmcu flag,
 # where to get the core library sources and include. This will also bring in
 # toolchains and uploader settings (i.e. CC, CCFLAGS, LD, LDFLAGS, etc.)
-include $(CONFIG_DIR)/boards/$(BOARD).inc
+include $(CONFIG_DIR)/$(BOARD).inc
 
 # Generate list of objects from TARGET source files. 
 # i.e. File SRC_DIR/foo/bar.c will result into OBJ_DIR/foo/bar_c.o
@@ -42,7 +42,7 @@ DFLAGS := $(addprefix -D, $(DEFINES))
 # that are in the same folder as the source currently build ( $(dir $<))
 EXPORTED_PUBLIC_HEADERS := $(subst $(SRC_DIR), $(PUBLIC_HEADERS_DIR), $(PUBLIC_HEADERS))
 # Extract directories, remove duplicates then add the -I flag
-INCLUDE = $(sort $(dir $(EXPORTED_PUBLIC_HEADERS))) $(dir $<)
+INCLUDE = $(sort $(dir $(EXPORTED_PUBLIC_HEADERS))) $(OTHER_INCLUDE_PATHS) $(dir $<)
 IFLAGS = $(addprefix -I, $(INCLUDE)) 
 
 # Passing VERBOSE=1 through command line will enable detailed build logs
@@ -56,9 +56,9 @@ endif
 all: $(TARGET_DIR)/$(TARGET).elf $(TARGET_DIR)/$(TARGET).eep $(TARGET_DIR)/$(TARGET).hex $(TARGET_DIR)/$(TARGET).bin
 
 .PHONY: upload
-upload: $(TARGET_DIR)/$(TARGET).elf
+upload: $(TARGET_DIR)/$(TARGET).$(UPLOADER_BIN_TYPE)
 	@echo "Uploading $<"
-	@echo $(UPLOADER) $(UPLOADERFLAGS) -Uflash:w:$<
+	$(V) $(UPLOADER) $(UPLOADERFLAGS) -Uflash:w:$< $(UPLOADERFLAGSEXTRA)
 
 $(TARGET_DIR)/$(TARGET).eep: $(TARGET_DIR)/$(TARGET).elf 
 	@echo "Genereting $@"
