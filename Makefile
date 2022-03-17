@@ -1,4 +1,4 @@
-TARGET=blink
+TARGET=test_project
 BOARD=uno_wifi_rev2
 
 BUILD_DIR := build
