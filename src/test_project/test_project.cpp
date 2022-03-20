@@ -19,6 +19,7 @@
 */
 
 #include <Arduino.h>
+#include "timer.h"
 
 // Declared weak in Arduino.h to allow user redefinitions.
 int atexit(void (* /*func*/ )()) { return 0; }
@@ -26,6 +27,11 @@ int atexit(void (* /*func*/ )()) { return 0; }
 
 void setupUSB() __attribute__((weak));
 void setupUSB() { }
+
+void timer_clbk(void)
+{
+	digitalWrite(LED_BUILTIN, CHANGE);
+}
 
 int main(void)
 {
@@ -37,15 +43,17 @@ int main(void)
     USBDevice.attach();
 #endif
 
+    pinMode(LED_BUILTIN, OUTPUT);
+
     Serial.begin(9600);
+
+    timer_init();
+
+    timer_start_continuous_ms(1000, timer_clbk);
 
     for (;;) 
     {
-        delay(1000);                       // wait for a second
-        Serial.println("CIAO");   
-        delay(5000);                       // wait for a second
-   
-        if (serialEventRun) serialEventRun();
+    	if (serialEventRun) serialEventRun();
     }
 
     return 0;
