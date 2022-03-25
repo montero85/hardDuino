@@ -43,20 +43,29 @@
  */
 #define TICK_US(timer_type) ((1000000.0 * timer_type##_FREQ_DIV)/TIMER_OSC_FREQ_HZ)
 
+/* Multiplier applied when casting the conversion factor to integer.
+ * This is to limit the lost of decimal precision.
+ * It must be divided out after conversion is performed.
+ */
+#define INT_CAST_MULTIPLIER  1024
+
 /* Conversion macros for the milliseconds timer.
  */
-#define MS_TO_TICKS ((uint16_t)((1000.0/TICK_US(TIMER_MS))))
-#define rtcTicksFromMilliseconds(ms) ((ms) * MS_TO_TICKS)
+#define MS_TO_TICKS (1000.0/TICK_US(TIMER_MS))
+#define MS_TO_TICKS_INT ((uint32_t)(MS_TO_TICKS * INT_CAST_MULTIPLIER))
+#define rtcTicksFromMilliseconds(ms) (((ms) * MS_TO_TICKS_INT)/INT_CAST_MULTIPLIER)
 
 /* Conversion macros for the seconds timer.
  */
-#define SEC_TO_TICKS ((uint16_t)((1000000.0/TICK_US(TIMER_SEC))))
-#define rtcTicksFromSeconds(sec) ((sec) * SEC_TO_TICKS)
+#define SEC_TO_TICKS (1000000.0/TICK_US(TIMER_SEC))
+#define SEC_TO_TICKS_INT ((uint32_t)(SEC_TO_TICKS * INT_CAST_MULTIPLIER))
+#define rtcTicksFromSeconds(sec) (((sec) * SEC_TO_TICKS_INT)/INT_CAST_MULTIPLIER)
 
 /* Conversion macros for the minutes timer.
  */
-#define MIN_TO_TICKS ((uint16_t)((60000000.0/TICK_US(TIMER_MIN))))
-#define rtcTicksFromMinutes(min) ((min) * MIN_TO_TICKS)
+#define MIN_TO_TICKS (60000000.0/TICK_US(TIMER_MIN))
+#define MIN_TO_TICKS_INT ((uint32_t)(MIN_TO_TICKS * INT_CAST_MULTIPLIER))
+#define rtcTicksFromMinutes(min) (((min) * MIN_TO_TICKS_INT)/INT_CAST_MULTIPLIER)
 
 struct timer_ctrl
 {
