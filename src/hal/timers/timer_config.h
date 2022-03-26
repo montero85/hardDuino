@@ -1,4 +1,4 @@
-/*!\file timers_config.hv
+/*!\file timers_config.h
 ** \author 
 ** \copyright TODO
 ** \brief Static configuration for system timer.

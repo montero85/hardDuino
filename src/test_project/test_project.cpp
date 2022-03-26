@@ -20,6 +20,7 @@
 
 #include <Arduino.h>
 #include "timer.h"
+#include "watchdog.h"
 
 // Declared weak in Arduino.h to allow user redefinitions.
 int atexit(void (* /*func*/ )()) { return 0; }
@@ -47,12 +48,15 @@ int main(void)
 
     Serial.begin(9600);
 
-    timer_init();
-
-    timer_start_continuous_ms(1000, timer_clbk);
+    watchdog_init();
 
     for (;;) 
     {
+    	digitalWrite(LED_BUILTIN, HIGH);
+    	delay(4000);
+    	digitalWrite(LED_BUILTIN, LOW);
+    	delay(3000);
+    	watchdog_kick();
     	if (serialEventRun) serialEventRun();
     }
 

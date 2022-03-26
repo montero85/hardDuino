@@ -1,4 +1,4 @@
-/*!\file timers.h
+/*!\file timers.c
 ** \author 
 ** \copyright
 ** \brief 
