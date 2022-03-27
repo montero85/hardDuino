@@ -9,10 +9,10 @@
 #include "timer.h"
 #include "timer_config.h"
 #include "interrupts.h"
+#include "sleep.h"
 #include <stddef.h>
 #include <avr/interrupt.h>
 #include <avr/io.h>
-#include "Arduino.h"
 /****************************************************************/
 
 /* C-preprocessor's hacks: convert human-friendly frequency divider
@@ -118,7 +118,7 @@ static void timer_start_common(uint16_t ticks, RTC_PRESCALER_t presc,
 	RTC.CTRLA |= (sys_timer.prescaler | RTC_RTCEN_bm);
 }
 
-#if TIMER_ENABLED_IN_SLEEP
+#ifdef TIMER_ENABLED_IN_SLEEP
 /*!	\brief Timer one-off initialisation for sleep mode
 **
 ** Function to register with the sleep subsystem for sleep
@@ -215,7 +215,7 @@ void timer_init(void)
 	/* Select clock source to 32.768 kHz external oscillator */
 	RTC.CLKSEL = RTC_CLKSEL_TOSC32K_gc;
 
-#if TIMER_ENABLED_IN_SLEEP
+#ifdef TIMER_ENABLED_IN_SLEEP
 	sleep_register_peripheral( timer_init_for_sleep,
 							   timer_on_enter_sleep,
 							   timer_on_exit_sleep);

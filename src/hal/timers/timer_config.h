@@ -56,7 +56,7 @@ extern "C" {
 ** is in sleep mode. Timer hardware can be used as a wake-up source in
 ** this way.
 **/
-// #define TIMER_ENABLED_IN_SLEEP
+#define TIMER_ENABLED_IN_SLEEP
 
 /*!	\brief Use a low power clock source for timer in sleep mode.
 **
