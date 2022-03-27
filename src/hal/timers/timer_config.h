@@ -50,12 +50,20 @@ extern "C" {
 **/
 #define TIMER_MIN_FREQ_DIV 16384  // 499,7 ms, ~9h max range
 
-/*!	\brief Run timer in Standby Sleep Mode
+/*!	\brief Keep the timer running during sleep mode.
 **
-** Set to 0x01 for the RTC to work when MCU is in Standby Sleep Mode.
-** Set to 0x00 otherwise.
+** Define this flag to have the timer hardware running when the device
+** is in sleep mode. Timer hardware can be used as a wake-up source in
+** this way.
 **/
-#define TIMER_RUN_STANDBY 0x01
+// #define TIMER_ENABLED_IN_SLEEP
+
+/*!	\brief Use a low power clock source for timer in sleep mode.
+**
+** Define to use a low power clock source to run the timer during sleep mode.
+** Time tracking will be less accurate but will require less power.
+**/
+// #define TIMER_USE_LP_CLOCK_IN_SLEEP
 
 #endif /* __TIMER_CONFIG_H */
 /****************************************************************/

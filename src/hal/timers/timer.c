@@ -28,11 +28,6 @@
 #define TIMER_SEC_PRESCALER_MASK   TIMER_PRESCALER_MASK(TIMER_SEC_FREQ_DIV)
 #define TIMER_MIN_PRESCALER_MASK   TIMER_PRESCALER_MASK(TIMER_MIN_FREQ_DIV)
 
-/* Convert TIMER_RUN_STANDBY setting in timer_config.h into a bit mask
- * to be set to the register.
- */
-#define TIMER_RUN_STANDBY_MASK (TIMER_RUN_STANDBY << RTC_RUNSTDBY_bp)
-
 /* Resolution of the RTC in microseconds based on the prescaler setting
  * of each timer type (ms, sec, min).
  *
@@ -67,16 +62,30 @@
 #define MIN_TO_TICKS_INT ((uint32_t)(MIN_TO_TICKS * INT_CAST_MULTIPLIER))
 #define rtcTicksFromMinutes(min) (((min) * MIN_TO_TICKS_INT)/INT_CAST_MULTIPLIER)
 
+/*!	\brief Timer private control structure
+**/
 struct timer_ctrl
 {
-	bool continuous;
-	uint16_t ticks;
-	RTC_PRESCALER_t prescaler;
-	timer_callback_t callback;
+	bool continuous; /** Continuous mode (true) or one-shot (false) */
+	uint16_t ticks;  /** Number of ticks to load into RTC.PER */
+	RTC_PRESCALER_t prescaler; /** Prescaler mask as define by avr/io.h */
+	timer_callback_t callback; /** Callback to executed during expiration. */
 };
 
 volatile struct timer_ctrl sys_timer;
 
+/*!	\brief Common function to start the various timers.
+**
+** Groups the common code to actually set the hardware and
+** make the timer run.
+**
+**	\param [in] ticks  - Ticks to set into .
+**	\param [in] presc  - Prescaler mask to use as define by avr/io.
+**	\param [in] clbk   - Callback to execute when timer expires.
+**	\param [in] continuos - Run timer in continuous or one-shot
+**
+**  \return Nothing.
+**/
 static void timer_start_common(uint16_t ticks, RTC_PRESCALER_t presc,
 							   timer_callback_t clbk, bool continuous)
 {
@@ -104,10 +113,73 @@ static void timer_start_common(uint16_t ticks, RTC_PRESCALER_t presc,
 	 * enable overflow interrupt */
 	RTC.PER = sys_timer.ticks;
 	RTC.INTCTRL = RTC_OVF_bm;
-	/* Set the prescaler, set running in stand-by mode and enable the RTC.
+	/* Set the prescaler and enable the RTC.
 	 */
-	RTC.CTRLA = TIMER_RUN_STANDBY_MASK | sys_timer.prescaler | RTC_RTCEN_bm;
+	RTC.CTRLA |= (sys_timer.prescaler | RTC_RTCEN_bm);
 }
+
+#if TIMER_ENABLED_IN_SLEEP
+/*!	\brief Timer one-off initialisation for sleep mode
+**
+** Function to register with the sleep subsystem for sleep
+** mode.
+**
+** Configure the timer hardware to enter sleep mode.
+** Configure timer hardware to remain active during sleep.
+**
+**  \return Nothing.
+**/
+static void timer_init_for_sleep(void)
+{
+	while(RTC.STATUS & RTC_CTRLABUSY_bm);
+	/* Enable device during deep sleep. */
+	RTC.CTRLA |= RTC_RUNSTDBY_bm;
+}
+
+/*!	\brief Configure the timer hardware for sleep mode.
+**
+** Function to register with the sleep subsystem for sleep
+** mode.
+**
+** Configure the timer hardware to enter sleep mode.
+** Mainly used to determine which clock source should be used
+** to run the timer hardware during sleep.
+**
+**	\return Nothing.
+**/
+static void timer_on_enter_sleep(void)
+{
+#ifdef TIMER_USE_LP_CLOCK_IN_SLEEP
+	/* Use internal ULP oscillator @32kHz as low power clock source.
+	 *
+	 * Note that hardware also supports ULP oscillator @1kHz. We don't
+	 * use it for now as it will require using two different frequencies for
+	 * LP and non LP timer clocks.
+	 */
+	RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
+#endif /* TIMER_USE_LP_CLOCK_IN_SLEEP */
+}
+
+/*!	\brief Configure the timer hardware for active mode.
+**
+** Function to register with the sleep subsystem for sleep
+** mode.
+**
+** Configure the timer hardware for active mode.
+** Restore active settings that have been changed
+** by timer_on_enter_sleep.
+**
+**	\return Nothing.
+**/
+static void timer_on_exit_sleep(void)
+{
+#ifdef TIMER_USE_LP_CLOCK_IN_SLEEP
+	/* Restore external crystal as power source.
+	 */
+	RTC.CLKSEL = RTC_CLKSEL_TOSC32K_gc;
+#endif /* TIMER_USE_LP_CLOCK_IN_SLEEP */
+}
+#endif /* TIMER_ENABLED_IN_SLEEP */
 
 ISR(RTC_CNT_vect)
 {
@@ -142,6 +214,12 @@ void timer_init(void)
 	while(RTC.STATUS != 0);
 	/* Select clock source to 32.768 kHz external oscillator */
 	RTC.CLKSEL = RTC_CLKSEL_TOSC32K_gc;
+
+#if TIMER_ENABLED_IN_SLEEP
+	sleep_register_peripheral( timer_init_for_sleep,
+							   timer_on_enter_sleep,
+							   timer_on_exit_sleep);
+#endif
 }
 
 bool timer_is_free(void)
@@ -198,5 +276,4 @@ void timer_stop(void)
 	sys_timer.callback = NULL;
 	interrupts_on();
 }
-
 /****************************************************************/
