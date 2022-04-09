@@ -22,6 +22,8 @@
 #include "timer.h"
 #include "sleep.h"
 #include "watchdog.h"
+#include "reset.h"
+#include <avr/io.h>
 
 // Declared weak in Arduino.h to allow user redefinitions.
 int atexit(void (* /*func*/ )()) { return 0; }
@@ -30,7 +32,6 @@ int atexit(void (* /*func*/ )()) { return 0; }
 void setupUSB() __attribute__((weak));
 void setupUSB() { }
 
-unsigned int timer_tick = 0;
 void timer_clbk(void)
 {
 	/* Basically do nothing. Just wake the chip up. */
@@ -39,6 +40,11 @@ void timer_clbk(void)
 
 int main(void)
 {
+	reset_cause_t hw;
+	sw_reset_t sw;
+
+	reset_init();
+    timer_init();
     init();
 
     initVariant();
@@ -49,23 +55,27 @@ int main(void)
 
     pinMode(LED_BUILTIN, OUTPUT);
 
-    timer_init();
-    //watchdog_init();
-    sleep_init();
     Serial.begin(9600);
-    timer_start_continuous_sec(5, timer_clbk);
+    hw = reset_read_last(&sw);
+    delay(10000);
+    watchdog_init();
+    if((hw != reset_power_on) && (hw != reset_external))
+    {
+    	/* Abnormal reset: spit it out. */
+    	Serial.print("Reset: ");
+    	Serial.print(hw);
+    	Serial.print(" Software code: ");
+    	Serial.println(sw);
+    }
+
     for (;;) 
     {
     	digitalWrite(LED_BUILTIN, HIGH);
     	delay(1000);
     	digitalWrite(LED_BUILTIN, LOW);
     	delay(1000);
-    	digitalWrite(LED_BUILTIN, HIGH);
-     	Serial.println("Enter Sleep");
-    	sleep_on_the_bed();
-    	//watchdog_kick();
-    	Serial.println("Exit Sleep");
     	if (serialEventRun) serialEventRun();
+    	watchdog_kick();
     }
 
     return 0;
