@@ -17,18 +17,18 @@
  */
 void watchdog_init(void)
 {
-	/* Enable watchdog by programming the timeout */
-	_PROTECTED_WRITE(WDT.CTRLA, WATCHDOG_TIMEOUT);
-	/* Wait for the setting to be written (just in case) */
-	while(WDT.STATUS & WDT_SYNCBUSY_bm);
-	/* Lock the watchdog to protect it from accidental writing */
-	_PROTECTED_WRITE(WDT.STATUS, WDT_LOCK_bm);
+    /* Enable watchdog by programming the timeout */
+    _PROTECTED_WRITE(WDT.CTRLA, WATCHDOG_TIMEOUT);
+    /* Wait for the setting to be written (just in case) */
+    while(WDT.STATUS & WDT_SYNCBUSY_bm);
+    /* Lock the watchdog to protect it from accidental writing */
+    _PROTECTED_WRITE(WDT.STATUS, WDT_LOCK_bm);
 }
 
 /* This can happily wrap avr macro to call asm("WDT") */
 void watchdog_kick(void)
 {
-	wdt_reset();
+    wdt_reset();
 }
 
 /****************************************************************/

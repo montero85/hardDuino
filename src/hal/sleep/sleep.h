@@ -26,7 +26,7 @@ extern "C" {
 #include <stdbool.h>
 /****************************************************************/
 
-/*!	\brief Type for on-init handler for peripherals.
+/*!    \brief Type for on-init handler for peripherals.
 **
 ** Self-configuration handler that peripherals should provide during
 ** registration.
@@ -38,7 +38,7 @@ extern "C" {
 **/
 typedef void (*sleep_on_init)(void);
 
-/*!	\brief Type for on-enter handler for peripherals.
+/*!    \brief Type for on-enter handler for peripherals.
 **
 ** Self-configuration handler that peripherals should provide during
 ** registration.
@@ -50,7 +50,7 @@ typedef void (*sleep_on_init)(void);
 **/
 typedef void (*sleep_on_enter)(void);
 
-/*!	\brief Type for on-exit handler for peripherals.
+/*!    \brief Type for on-exit handler for peripherals.
 **
 ** Self-configuration handler that peripherals should provide during
 ** registration.
@@ -61,7 +61,7 @@ typedef void (*sleep_on_enter)(void);
 **/
 typedef void (*sleep_on_exit)(void);
 
-/*!	\brief One-off initialisation for sleep module.
+/*!    \brief One-off initialisation for sleep module.
 **
 ** Initialise the sleep hardware and call sleep_on_init function for
 ** all the registered peripherals.
@@ -69,11 +69,11 @@ typedef void (*sleep_on_exit)(void);
 ** NOTE: This function shall be called after all the required peripherals
 ** have been initialised and registered.
 **
-**	\return None
+**    \return None
 **/
 void sleep_init(void);
 
-/*!	\brief Register a device for sleep self-configuration.
+/*!    \brief Register a device for sleep self-configuration.
 **
 ** This function decouples the sleep module from the configuration
 ** of each peripherals for sleep_on_bed() mode. Each peripheral,
@@ -84,18 +84,18 @@ void sleep_init(void);
 ** this should make it easier to configure individual hardware
 ** modules with a discrete level of independence.
 **
-**	\param [in] on_init_hlr   - handler to call during sleep_init()
-**	\param [in] sleep_on_enter - handler to call before entering sleep_to_bed() mode.
-**	\param [in] sleep_on_exit - handler to call just after exit from sleep_to_bed()
-**	                            mode.
+**    \param [in] on_init_hlr   - handler to call during sleep_init()
+**    \param [in] sleep_on_enter - handler to call before entering sleep_to_bed() mode.
+**    \param [in] sleep_on_exit - handler to call just after exit from sleep_to_bed()
+**                                mode.
 **
-**	\return true if registration succeeded.
+**    \return true if registration succeeded.
 **/
 bool sleep_register_peripheral(sleep_on_init on_init_hlr,
-							   sleep_on_enter on_enter_hlr,
-		                       sleep_on_exit on_exit_hlr);
+                               sleep_on_enter on_enter_hlr,
+                               sleep_on_exit on_exit_hlr);
 
-/*!	\brief Enter soft low power mode where only CPU is off.
+/*!    \brief Enter soft low power mode where only CPU is off.
 **
 ** After calling this function, software execution will halt until
 ** an interrupt occurs. At least one interrupt shall be configured
@@ -105,11 +105,11 @@ bool sleep_register_peripheral(sleep_on_init on_init_hlr,
 ** first and, after that, background software will resume from after
 ** sleep_on_couch() function.
 **
-**	\return None.
+**    \return None.
 **/
 void sleep_on_the_couch(void);
 
-/*!	\brief Enter hard low power mode where CPU and most of peripherals are off.
+/*!    \brief Enter hard low power mode where CPU and most of peripherals are off.
 **
 ** This function will call on-enter handlers first and will then halt hardware/software
 ** execution. Hardware/software is restarted when one of the still active interrupts
@@ -120,7 +120,7 @@ void sleep_on_the_couch(void);
 ** on-exit handlers are executed and background software can resume from after
 ** sleep_on_bed() function.
 **
-**	\return None.
+**    \return None.
 **/
 void sleep_on_the_bed(void);
 /****************************************************************/

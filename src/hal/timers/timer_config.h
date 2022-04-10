@@ -22,35 +22,35 @@ extern "C" {
 }
 #endif
 
-/*!	\brief Oscillator frequency.
+/*!    \brief Oscillator frequency.
 **
 ** Frequency of the oscillator driving the RTC.
 ** In this implementation we use the external 32kHz cristal: XOSC32K.
 **/
 #define TIMER_OSC_FREQ_HZ  32768
 
-/*!	\brief Frequency divider for milliseconds timer.
+/*!    \brief Frequency divider for milliseconds timer.
 **
 ** RTC will be run at a frequency equal to TIMER_OSC_FREQ/TIMER_FREQ_DIV_MS
 ** when it is used to count milliseconds.
 **/
 #define TIMER_MS_FREQ_DIV  1 //30.5 us resolution, 1.999 seconds max range
 
-/*!	\brief Frequency divider for seconds timer.
+/*!    \brief Frequency divider for seconds timer.
 **
 ** RTC will be run at a frequency equal to TIMER_OSC_FREQ/TIMER_FREQ_DIV_SEC
 ** when it is used to count seconds.
 **/
 #define TIMER_SEC_FREQ_DIV 32 //976us resolution, 1min:4sec max range
 
-/*!	\brief Frequency divider for minutes timer.
+/*!    \brief Frequency divider for minutes timer.
 **
 ** RTC will be run at a frequency equal to TIMER_OSC_FREQ/TIMER_FREQ_DIV_MIN
 ** when it is used to count seconds.
 **/
 #define TIMER_MIN_FREQ_DIV 16384  // 499,7 ms, ~9h max range
 
-/*!	\brief Keep the timer running during sleep mode.
+/*!    \brief Keep the timer running during sleep mode.
 **
 ** Define this flag to have the timer hardware running when the device
 ** is in sleep mode. Timer hardware can be used as a wake-up source in
@@ -58,7 +58,7 @@ extern "C" {
 **/
 #define TIMER_ENABLED_IN_SLEEP
 
-/*!	\brief Use a low power clock source for timer in sleep mode.
+/*!    \brief Use a low power clock source for timer in sleep mode.
 **
 ** Define to use a low power clock source to run the timer during sleep mode.
 ** Time tracking will be less accurate but will require less power.

@@ -34,16 +34,16 @@ void setupUSB() { }
 
 void timer_clbk(void)
 {
-	/* Basically do nothing. Just wake the chip up. */
-	Serial.println("Interrupt");
+    /* Basically do nothing. Just wake the chip up. */
+    Serial.println("Interrupt");
 }
 
 int main(void)
 {
-	reset_cause_t hw;
-	sw_reset_t sw;
+    reset_cause_t hw;
+    sw_reset_t sw;
 
-	reset_init();
+    reset_init();
     timer_init();
     init();
 
@@ -61,21 +61,21 @@ int main(void)
     watchdog_init();
     if((hw != reset_power_on) && (hw != reset_external))
     {
-    	/* Abnormal reset: spit it out. */
-    	Serial.print("Reset: ");
-    	Serial.print(hw);
-    	Serial.print(" Software code: ");
-    	Serial.println(sw);
+        /* Abnormal reset: spit it out. */
+        Serial.print("Reset: ");
+        Serial.print(hw);
+        Serial.print(" Software code: ");
+        Serial.println(sw);
     }
 
     for (;;) 
     {
-    	digitalWrite(LED_BUILTIN, HIGH);
-    	delay(1000);
-    	digitalWrite(LED_BUILTIN, LOW);
-    	delay(1000);
-    	if (serialEventRun) serialEventRun();
-    	watchdog_kick();
+        digitalWrite(LED_BUILTIN, HIGH);
+        delay(1000);
+        digitalWrite(LED_BUILTIN, LOW);
+        delay(1000);
+        if (serialEventRun) serialEventRun();
+        watchdog_kick();
     }
 
     return 0;

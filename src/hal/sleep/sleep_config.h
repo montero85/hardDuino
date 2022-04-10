@@ -17,7 +17,7 @@ extern "C" {
 #include <stdbool.h>
 /****************************************************************/
 
-/*!	\brief Maximum number of registered peripherals
+/*!    \brief Maximum number of registered peripherals
 **
 ** This is the maximum number of peripherals that can be registered
 ** using sleep_register_peripheral(...) API.

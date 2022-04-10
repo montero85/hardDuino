@@ -18,15 +18,15 @@ extern "C" {
 
 /*!\brief Disable interrupts
 **
-**	Note: interrupts_off, interrupts_on implementation is not safe
-**	      to nesting. Calls shall not be nested.
+**    Note: interrupts_off, interrupts_on implementation is not safe
+**          to nesting. Calls shall not be nested.
 **/
 #define interrupts_off() cli()
 
 /*!\brief Enable interrupts
 **
-**	Note: interrupts_off, interrupts_on implementation is not safe
-**	      to nesting. Calls shall not be nested.
+**    Note: interrupts_off, interrupts_on implementation is not safe
+**          to nesting. Calls shall not be nested.
 **/
 #define interrupts_on() sei()
 

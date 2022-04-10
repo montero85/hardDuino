@@ -17,7 +17,7 @@ extern "C" {
 #include <stdbool.h>
 /****************************************************************/
 
-/*!	\brief Watchdog timeout value.
+/*!    \brief Watchdog timeout value.
 **
 ** Can be any of the following labels (see WDT_PERIOD_t in avr/io.h):
 **

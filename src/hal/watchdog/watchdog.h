@@ -19,20 +19,20 @@ extern "C" {
 #include <stdbool.h>
 /****************************************************************/
 
-/*!	\brief Initialise watchdog timer.
+/*!    \brief Initialise watchdog timer.
 **
-**	Call at boot to perform hardware setup.
+**    Call at boot to perform hardware setup.
 **
-**	\return None
+**    \return None
 **/
 void watchdog_init(void);
 
-/*!	\brief Service the watchdog timer.
+/*!    \brief Service the watchdog timer.
 **
-**	Call this function regularly to clear the watchdog counter and
-**	prevent system reset.
+**    Call this function regularly to clear the watchdog counter and
+**    prevent system reset.
 **
-**	\return None
+**    \return None
 **/
 void watchdog_kick(void);
 /****************************************************************/
