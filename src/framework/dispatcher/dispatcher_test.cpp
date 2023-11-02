@@ -1,4 +1,4 @@
-/*!\file dispatcher.cpp
+/*!\file dispatcher_test.cpp
 ** \author 
 ** \copyright
 ** \brief Unit test for dispatcher.cpp
