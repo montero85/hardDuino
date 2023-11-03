@@ -2,11 +2,18 @@
 ** \author 
 ** \copyright
 ** \brief Implementation of dispatcher module.
-** \details TODO
+** \details Dispatcher module wraps the HAL timer API to schedule
+** its tasks. For doing so, it registers an on_hal_timer_callback
+** with the HAL timer.
+**
+** For things to work properly, only a single instance of the
+** Dispatcher can be registered to use the HAL timer. This means that
+** no more than one Dispatcher instance can exist at any given time.
 **/
 /****************************************************************/
 
 #include "dispatcher.h"
+#include "timer.h"
 #include <map>
 #include <iostream>
 #include <algorithm>
@@ -14,10 +21,7 @@
 
 #define STUBS
 #ifdef STUBS
-extern uint32_t ut_timer;
-typedef void (*timer_callback_t)(void);
-extern void timer_stop(void);
-extern void timer_start_one_shot_ms(uint16_t ms, timer_callback_t clbk);
+// TODO: Remove!!!!!!!!!!!!!!!!!!!!!!!!
 #define interrupts_on()
 #define interrupts_off()
 #endif /* STUBS */
@@ -34,18 +38,36 @@ extern void timer_start_one_shot_ms(uint16_t ms, timer_callback_t clbk);
  **/
 #define NO_PERIOD              0
 
+/** Instance of the dispatcher registered with the HAL timer
+ ** callback.
+ **
+ ** Only a single Dispatcher instance is allowed at any given time.
+ ** If this pointer is already taken, construction of new dispatcher
+ ** is rejected.
+ **/
 Dispatcher *registered_dispatcher;
 
 /****************************************************************/
+
+/*! Call back to register with the timer HAL.
+ **
+ ** Callback called on timer interrupts. It will
+ ** process the registered dispatcher instance.
+ **/
 void on_hal_timer_callback(void)
 {
     if(registered_dispatcher != nullptr)
     {
-        registered_dispatcher->process_timetable();
+        registered_dispatcher->processTimetable();
     }
 }
 
-Dispatcher::Dispatcher(void): timestamp{0}, head_timestamp{0}, timer_active{false}
+/** Construction will register the dispatcher instance
+ ** to use the timer API.
+ ** Only a single alive instance of the dispatcher is
+ ** allowed at present.
+ **/
+Dispatcher::Dispatcher(void): timestamp{0}, headTimestamp{0}, timerActive{false}
 {
     if(registered_dispatcher != nullptr)
     {
@@ -54,17 +76,25 @@ Dispatcher::Dispatcher(void): timestamp{0}, head_timestamp{0}, timer_active{fals
     registered_dispatcher = this;
 }
 
+/** Destruction will release the registration with the
+ ** HAL timer callback.
+ **/
 Dispatcher::~Dispatcher(void)
 {
     registered_dispatcher = nullptr;
 }
 
+/** Updates dispatcher timestamp to the current time.
+ **/
 void Dispatcher::refreshTimestamp(void)
 {
-    timestamp = ut_timer;
+    timestamp = timer_get_tick();
 }
 
-void Dispatcher::process_timetable(void)
+/** Goes through the backlog of expired iTasks and calls
+ ** their "run" method.
+ **/
+void Dispatcher::processTimetable(void)
 {
     if(timetable.empty())
     {
@@ -109,10 +139,16 @@ void Dispatcher::process_timetable(void)
         }
     }
     /* FInally update the new head and the hal timer to match it. */
-    update_head_and_timer();
+    updateHeadAndTimer();
 }
 
-void Dispatcher::update_head_and_timer(void)
+/** Ensures that the HAL timer is kept in synch with the "head" task in the
+ ** timetable (earliest to expire).
+ **
+ ** It needs to be called every time an iTask is added/removed to the
+ ** timetable.
+ **/
+void Dispatcher::updateHeadAndTimer(void)
 {
     auto head = timetable.cbegin();
 
@@ -120,11 +156,11 @@ void Dispatcher::update_head_and_timer(void)
     {
         /* "Remove" operations can dry out the timetable. */
         timer_stop();
-        timer_active = false;
+        timerActive = false;
     }
-    else if((head->first != head_timestamp) || !timer_active)
+    else if((head->first != headTimestamp) || !timerActive)
     {
-        timer_active = true;
+        timerActive = true;
         /* Head element changed (after "add" or "remove").
          * Refresh the hal timer.
          */
@@ -136,15 +172,38 @@ void Dispatcher::update_head_and_timer(void)
          * Also design constraints don't consider hard real timing.
          */
         auto timer_value = head->first > timestamp + HAL_TIMER_MIN_RELOAD_MS ?
-                head->first - timestamp : (d_timestamp)HAL_TIMER_MIN_RELOAD_MS;
+                head->first - timestamp : (dispatchTimestamp)HAL_TIMER_MIN_RELOAD_MS;
 
         /* Ensure also that we don't exceed the max range. If we do, we'd need to
          * progressively hop towards the deadline.
          */
-        timer_value = std::min(timer_value, (d_timestamp)HAL_TIMER_MAX_RANGE_MS);
+        timer_value = std::min(timer_value, (dispatchTimestamp)HAL_TIMER_MAX_RANGE_MS);
         timer_start_one_shot_ms(timer_value, on_hal_timer_callback);
-        head_timestamp = head->first;
+        headTimestamp = head->first;
     }
+}
+
+/** Helper function to add iTasks to the timetable.
+ **/
+void Dispatcher::addTask(iTaskPtr task, dispatchTimestamp ms, bool periodic)
+{
+    refreshTimestamp();
+    auto period = periodic ? ms : NO_PERIOD;
+    interrupts_off();
+    auto deadline = timestamp + ms;
+    timetable[deadline] = {task , period};
+    updateHeadAndTimer();
+    interrupts_on();
+}
+
+void Dispatcher::addTaskPeriodic(iTaskPtr task, dispatchTimestamp ms)
+{
+    addTask(task, ms, true);
+}
+
+void Dispatcher::addTaskOneShot(iTaskPtr task, dispatchTimestamp ms)
+{
+    addTask(task, ms, false);
 }
 
 bool Dispatcher::removeTask(iTaskPtr task)
@@ -158,32 +217,11 @@ bool Dispatcher::removeTask(iTaskPtr task)
         {
             res = true;
             timetable.erase(it);
-            update_head_and_timer();
+            updateHeadAndTimer();
             break;
         }
     }
     interrupts_on();
     return res;
-}
-
-void Dispatcher::addTask(iTaskPtr task, d_timestamp ms, bool periodic)
-{
-    refreshTimestamp();
-    auto period = periodic ? ms : NO_PERIOD;
-    interrupts_off();
-    auto deadline = timestamp + ms;
-    timetable[deadline] = {task , period};
-    update_head_and_timer();
-    interrupts_on();
-}
-
-void Dispatcher::addTaskPeriodic(iTaskPtr task, d_timestamp ms)
-{
-    addTask(task, ms, true);
-}
-
-void Dispatcher::addTaskOneShot(iTaskPtr task, d_timestamp ms)
-{
-    addTask(task, ms, false);
 }
 /****************************************************************/

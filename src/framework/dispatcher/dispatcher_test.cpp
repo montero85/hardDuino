@@ -2,11 +2,13 @@
 ** \author 
 ** \copyright
 ** \brief Unit test for dispatcher.cpp
-** \details TODO
+** \details This file contains simple unit tests to verify basic functionalities
+**          of the "Dispatcher" class.
 **/
 /****************************************************************/
 
 #include "dispatcher.h"
+#include "timer_host_stubs.h"
 #include<iostream>
 #include<map>
 #include<vector>
@@ -15,6 +17,10 @@
 #include<stdexcept>
 /****************************************************************/
 
+/*!    \brief Concrete dispatcher task for test.
+**
+** Implementor of iTask interface for unit tests.
+**/
 class TestTask : public iTask
 {
 public:
@@ -25,79 +31,29 @@ private:
     unsigned int id;
 };
 
+/*!    \brief Dispatcher friend class used for verification.
+**
+** This class has access to the full state of a Dispatcher instance and therefore
+** can be used to verify execution in details during unit tests.
+**/
 class DispatcherUnitTest
 {
 public:
     DispatcherUnitTest(std::shared_ptr<Dispatcher> d): dispatcher{d} {};
     void printTimetable(void);
-    void verify_timer_state(bool active);
-    void verify_timetable(std::vector<iTaskPtr> &expected_tasks);
+    void verifyTimerState(bool active);
+    void verifyTimetable(std::vector<iTaskPtr> &expectedTasks);
 private:
     std::shared_ptr<Dispatcher> dispatcher;
 };
 
-#define STUBS
-#ifdef STUBS
-typedef void (*timer_callback_t)(void);
-uint32_t ut_timer = 0;
-struct timer_control
-{
-    bool active;
-    uint32_t next_expiry;
-    timer_callback_t clbk;
-};
-struct timer_control timerCtrl;
-void timer_init(void)
-{
-    timerCtrl.active = false;
-    timerCtrl.next_expiry = 0;
-    timerCtrl.clbk = nullptr;
-}
-
-void timer_stop(void)
-{
-    timerCtrl.active = false;
-}
-void timer_start_one_shot_ms(uint16_t ms, timer_callback_t clbk)
-{
-    timerCtrl.active = true;
-    timerCtrl.next_expiry = ut_timer + ms;
-    timerCtrl.clbk = clbk;
-}
-void reset_time(void)
-{
-    ut_timer = 0;
-}
-
-void elapseTime(uint32_t time)
-{
-    if(!timerCtrl.active)
-    {
-        ut_timer +=time;
-        return;
-    }
-    while(time > 0)
-    {
-        time--;
-        ut_timer++;
-        if(ut_timer >= timerCtrl.next_expiry)
-        {
-            /* De-activate timer. Callback may reactivate it. */
-            timerCtrl.active = false;
-            timerCtrl.clbk();
-            if(!timerCtrl.active)
-            {
-                ut_timer += time;
-                return;
-            }
-        }
-    }
-}
-#endif /* STUBS */
-
+/*!    \brief Prints the Dispatcher timetable.
+**
+** Prints the content of the Dispatcher timetable at the current time.
+**/
 void DispatcherUnitTest::printTimetable(void)
 {
-    std::cout << "Timetable @time: " << ut_timer << ":" << std::endl;
+    std::cout << "Timetable @time: " << timer_get_tick() << ":" << std::endl;
     if(dispatcher->timetable.empty())
     {
         std::cout << "Empty" << std::endl;
@@ -109,139 +65,166 @@ void DispatcherUnitTest::printTimetable(void)
     }
 }
 
-void DispatcherUnitTest::verify_timetable(std::vector<iTaskPtr> &expected_tasks)
+/*!    \brief Verify consistency of Dispatcher timetable.
+**
+** \param[in] expectedTasks - tasks that should be present in the timetable.
+**
+** \throws runtime_error in case of negative outcome.
+**
+** Check that the tasks in the timetable match the expectations.
+** Check also coherence of HAL timer state and headTimestamp.ß
+**/
+void DispatcherUnitTest::verifyTimetable(std::vector<iTaskPtr> &expectedTasks)
 {
-    std::vector<iTaskPtr> actual_tasks;
+    std::vector<iTaskPtr> actualTasks;
     auto t = dispatcher->timetable.cbegin()->first;
 
     for(auto t : dispatcher->timetable)
     {
-        actual_tasks.push_back(t.second.task);
+        actualTasks.push_back(t.second.task);
     }
-    if(expected_tasks != actual_tasks)
+    if(expectedTasks != actualTasks)
     {
         throw std::runtime_error("FAIL: dispatcher timetable!!");
     }
-    if(expected_tasks.empty() && dispatcher->timer_active)
+    if(expectedTasks.empty() && dispatcher->timerActive)
     {
         throw std::runtime_error("FAIL: inconsistent timer active flag!!");
     }
 
-    if(dispatcher->timer_active && dispatcher->head_timestamp != t)
+    if(dispatcher->timerActive && dispatcher->headTimestamp != t)
     {
         throw std::runtime_error("FAIL: inconsistent timer head timestamp!!");
     }
 }
 
-void DispatcherUnitTest::verify_timer_state(bool active)
+/*!    \brief Verify coherence of HAL timer state.
+**
+** \param[in] active - whether expectation is to have timer
+**                     active or not.
+**
+** \throws runtime_error in case of negative outcome.
+**
+** Check that the HAL timer state matche expectations.
+**/
+void DispatcherUnitTest::verifyTimerState(bool active)
 {
-    if(timerCtrl.active != active)
+    if(((!active) && timer_host_is_timer_active()) ||
+       ((active) && !timer_host_is_timer_active()))
     {
         throw std::runtime_error("FAIL: Timer state verification!!");
     }
 }
 
-void test_simple_one_shot(void)
+/*!    \brief Verify one-shot dispatches.
+**/
+void testSimpleOneShot(void)
 {
     timer_init();
-    reset_time();
+    timer_host_reset_time();
 
     auto dispatcher { std::make_shared<Dispatcher>()};
     auto testTask1 { std::make_shared<TestTask>(1) };
-    DispatcherUnitTest d_ut {dispatcher};
+    DispatcherUnitTest dispUT {dispatcher};
 
     std::vector<iTaskPtr> expectedTasks{testTask1};
     std::vector<iTaskPtr> expectedTasks2{};
     std::cout <<" Wait 24 ms" <<std::endl;
     dispatcher->addTaskOneShot(testTask1, 25);
-    d_ut.printTimetable();
-    elapseTime(24);
-    d_ut.verify_timetable(expectedTasks);
+    dispUT.printTimetable();
+    timer_host_elapse_time(24);
+    dispUT.verifyTimetable(expectedTasks);
     std::cout <<" Wait 1 ms" <<std::endl;
-    elapseTime(1);
-    d_ut.printTimetable();
-    d_ut.verify_timer_state(false);
-    d_ut.verify_timetable(expectedTasks2);
+    timer_host_elapse_time(1);
+    dispUT.printTimetable();
+    dispUT.verifyTimerState(false);
+    dispUT.verifyTimetable(expectedTasks2);
 }
 
-void test_simple_periodic(void)
+/*!    \brief Verify periodic dispatches.
+**/
+void testSimplePeriodic(void)
 {
     timer_init();
-    reset_time();
+    timer_host_reset_time();
 
     auto dispatcher { std::make_shared<Dispatcher>()};
     auto testTask1 { std::make_shared<TestTask>(1) };
-    DispatcherUnitTest d_ut {dispatcher};
+    DispatcherUnitTest dispUT {dispatcher};
 
     std::vector<iTaskPtr> expectedTasks{testTask1};
     std::cout <<" Wait 24 ms" <<std::endl;
     dispatcher->addTaskPeriodic(testTask1, 25);
-    d_ut.printTimetable();
-    elapseTime(24);
-    d_ut.verify_timetable(expectedTasks);
+    dispUT.printTimetable();
+    timer_host_elapse_time(24);
+    dispUT.verifyTimetable(expectedTasks);
     std::cout <<" Wait 1 ms" <<std::endl;
-    elapseTime(1);
-    d_ut.printTimetable();
-    d_ut.verify_timer_state(true);
-    d_ut.verify_timetable(expectedTasks);
+    timer_host_elapse_time(1);
+    dispUT.printTimetable();
+    dispUT.verifyTimerState(true);
+    dispUT.verifyTimetable(expectedTasks);
 }
 
-void test_remove(void)
+/*!    \brief Verify dispatch removal.
+**/
+void testRemove(void)
 {
     timer_init();
-    reset_time();
+    timer_host_reset_time();
 
     auto dispatcher { std::make_shared<Dispatcher>()};
     auto testTask1 { std::make_shared<TestTask>(1) };
     auto testTask2 { std::make_shared<TestTask>(2) };
     auto testTask3 { std::make_shared<TestTask>(3) };
-    DispatcherUnitTest d_ut {dispatcher};
+    DispatcherUnitTest dispUT {dispatcher};
 
     std::vector<iTaskPtr> expectedTasks1{testTask1};
     std::vector<iTaskPtr> expectedTasks2{testTask1, testTask2};
     std::vector<iTaskPtr> expectedTasks3{testTask3, testTask1, testTask2};
     std::vector<iTaskPtr> empty{};
 
-    d_ut.verify_timer_state(false);
+    dispUT.verifyTimerState(false);
 
     std::cout <<" Adding task1" <<std::endl;
     dispatcher->addTaskPeriodic(testTask1, 25);
-    d_ut.printTimetable();
-    d_ut.verify_timer_state(true);
-    d_ut.verify_timetable(expectedTasks1);
+    dispUT.printTimetable();
+    dispUT.verifyTimerState(true);
+    dispUT.verifyTimetable(expectedTasks1);
 
     std::cout <<" Adding task2" <<std::endl;
     dispatcher->addTaskPeriodic(testTask2, 50);
-    d_ut.printTimetable();
-    d_ut.verify_timer_state(true);
-    d_ut.verify_timetable(expectedTasks2);
+    dispUT.printTimetable();
+    dispUT.verifyTimerState(true);
+    dispUT.verifyTimetable(expectedTasks2);
 
     std::cout <<" Adding task3" <<std::endl;
     dispatcher->addTaskPeriodic(testTask3, 15);
-    d_ut.printTimetable();
-    d_ut.verify_timer_state(true);
-    d_ut.verify_timetable(expectedTasks3);
+    dispUT.printTimetable();
+    dispUT.verifyTimerState(true);
+    dispUT.verifyTimetable(expectedTasks3);
 
     std::cout <<" Remvoing task3" <<std::endl;
     dispatcher->removeTask(testTask3);
-    d_ut.printTimetable();
-    d_ut.verify_timer_state(true);
-    d_ut.verify_timetable(expectedTasks2);
+    dispUT.printTimetable();
+    dispUT.verifyTimerState(true);
+    dispUT.verifyTimetable(expectedTasks2);
 
     std::cout <<" Remvoing task2" <<std::endl;
     dispatcher->removeTask(testTask2);
-    d_ut.printTimetable();
-    d_ut.verify_timer_state(true);
-    d_ut.verify_timetable(expectedTasks1);
+    dispUT.printTimetable();
+    dispUT.verifyTimerState(true);
+    dispUT.verifyTimetable(expectedTasks1);
 
     std::cout <<" Remvoing task1" <<std::endl;
     dispatcher->removeTask(testTask1);
-    d_ut.printTimetable();
-    d_ut.verify_timer_state(false);
-    d_ut.verify_timetable(empty);
+    dispUT.printTimetable();
+    dispUT.verifyTimerState(false);
+    dispUT.verifyTimetable(empty);
 }
 
-void test_two_dispatchers(void)
+/*!    \brief Verify that we cannot create two dispatchers.
+**/
+void testTwoDispatchers(void)
 {
     std::cout <<"Instantiating first dispatcher" << std::endl;
     auto dispatcher1 { std::make_shared<Dispatcher>()};
@@ -259,9 +242,9 @@ void test_two_dispatchers(void)
 
 int main(void)
 {
-    test_simple_one_shot();
-    test_simple_periodic();
-    test_remove();
-    test_two_dispatchers();
+    testSimpleOneShot();
+    testSimplePeriodic();
+    testRemove();
+    testTwoDispatchers();
 }
 /****************************************************************/

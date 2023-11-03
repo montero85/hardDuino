@@ -121,6 +121,19 @@ void timer_start_continuous_min(uint16_t min, timer_callback_t clbk);
 **    \return Nothing.
 **/
 void timer_stop(void);
+
+/*!    \brief Get system timer value.
+**
+** Read the value of the hardware counter used to implement
+** the system timer.
+**
+** TODO: For the dispatcher interface to work, this probably
+** needs to be a number in ms.
+**
+**    \return Number of ticks in the hardware counter.
+**/
+uint16_t timer_get_tick(void);
+
 /****************************************************************/
 #ifdef __cplusplus
 }

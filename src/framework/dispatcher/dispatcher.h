@@ -21,7 +21,7 @@
  * TODO: Needs to find the appropriate value for the timer type.
  *
 **/
-using d_timestamp = timestamp<uint32_t>;
+using dispatchTimestamp = timestamp<uint32_t>;
 
 /*!    \brief Virtual interface for dispatcher tasks.
 **
@@ -33,9 +33,20 @@ class iTask
 {
 public:
     virtual ~iTask() {};
+
+    /*!    \brief Virtual method for iTasks interface.
+    **
+    ** The method that gets executed when the dispatch timer expires.
+    **/
     virtual void run() const = 0;
 };
 
+/*!    \brief Pointer type for iTasks.
+**
+** Shared pointers allows ownership of the task lifetime to be
+** shared among the Dispatcher and any creator/user of the concrete task
+** instance.
+**/
 using iTaskPtr = std::shared_ptr<const iTask>;
 
 class Dispatcher
@@ -43,30 +54,60 @@ class Dispatcher
 public:
     Dispatcher();
     ~Dispatcher();
-    void addTaskPeriodic(iTaskPtr task, d_timestamp ms);
-    void addTaskOneShot(iTaskPtr task, d_timestamp ms);
+
+    /*!    \brief Add a periodic task to the time dispatcher.
+    **
+    ** \param [in] task - Pointer to the task to be added.
+    ** \param [in] ms - Period in ms.
+    **
+    ** Adds a task to the dispatcher so that it is run
+    ** periodically every "ms" milliseconds.
+    **/
+    void addTaskPeriodic(iTaskPtr task, dispatchTimestamp ms);
+
+    /*!    \brief Add a "one-shot" task to the time dispatcher.
+    **
+    ** \param [in] task - Pointer to the task to be added.
+    ** \param [in] ms - Delay in ms since the time of the call.
+    **
+    ** Adds a task to the dispatcher so that it is run
+    ** once with a delay of "ms" since the call to this
+    ** function.
+    **/
+    void addTaskOneShot(iTaskPtr task, dispatchTimestamp ms);
+
+    /*!    \brief Remove an active task from the time dispatcher.
+    **
+    ** Remove a one-shot or periodic task scheduled for run in the
+    ** time dispatcher.
+    **/
     bool removeTask(iTaskPtr task);
-    void process_timetable(void);
+
 private:
-    struct d_record
+    struct dispatchRecord
     {
         iTaskPtr task;
-        d_timestamp period;
+        dispatchTimestamp period;
     };
-    d_timestamp timestamp;
-    d_timestamp head_timestamp;
-    bool timer_active;
-    std::map<d_timestamp, d_record> timetable;
-    void addTask(iTaskPtr task, d_timestamp ms, bool periodic);
+    dispatchTimestamp timestamp;
+    dispatchTimestamp headTimestamp;
+    bool timerActive;
+    std::map<dispatchTimestamp, dispatchRecord> timetable;
+    void addTask(iTaskPtr task, dispatchTimestamp ms, bool periodic);
     void refreshTimestamp(void);
-    void update_head_and_timer(void);
-
+    void updateHeadAndTimer(void);
+    void processTimetable(void);
     /** Unit test class to access private properties from separate
      ** unit test file.
      **/
     friend class DispatcherUnitTest;
+    friend void on_hal_timer_callback(void);
 };
 
+/*!    \brief HAL timer has already been grabbed.
+**
+** Exception raised when the HAL timer has already been grabbed.
+**/
 class HALTimerNotAvailable : public std::exception
 {
 public:
