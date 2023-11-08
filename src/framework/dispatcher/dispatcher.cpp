@@ -5,10 +5,6 @@
 ** \details Dispatcher module wraps the HAL timer API to schedule
 ** its tasks. For doing so, it registers an on_hal_timer_callback
 ** with the HAL timer.
-**
-** For things to work properly, only a single instance of the
-** Dispatcher can be registered to use the HAL timer. This means that
-** no more than one Dispatcher instance can exist at any given time.
 **/
 /****************************************************************/
 
@@ -38,50 +34,23 @@
  **/
 #define NO_PERIOD              0
 
-/** Instance of the dispatcher registered with the HAL timer
- ** callback.
+/** Static instance of the dispatcher singleton.
  **
- ** Only a single Dispatcher instance is allowed at any given time.
- ** If this pointer is already taken, construction of new dispatcher
- ** is rejected.
+ ** Lazily initialised by Dispatcher::get()
  **/
-Dispatcher *registered_dispatcher;
+Dispatcher *Dispatcher::instance = nullptr;
 
 /****************************************************************/
 
 /*! Call back to register with the timer HAL.
  **
  ** Callback called on timer interrupts. It will
- ** process the registered dispatcher instance.
+ ** process the dispatcher timetable.
  **/
 void on_hal_timer_callback(void)
 {
-    if(registered_dispatcher != nullptr)
-    {
-        registered_dispatcher->processTimetable();
-    }
-}
-
-/** Construction will register the dispatcher instance
- ** to use the timer API.
- ** Only a single alive instance of the dispatcher is
- ** allowed at present.
- **/
-Dispatcher::Dispatcher(void): timestamp{0}, headTimestamp{0}, timerActive{false}
-{
-    if(registered_dispatcher != nullptr)
-    {
-        throw HALTimerNotAvailable();
-    }
-    registered_dispatcher = this;
-}
-
-/** Destruction will release the registration with the
- ** HAL timer callback.
- **/
-Dispatcher::~Dispatcher(void)
-{
-    registered_dispatcher = nullptr;
+    /* If this function is called, instance is initialised. */
+    Dispatcher::instance->processTimetable();
 }
 
 /** Updates dispatcher timestamp to the current time.
@@ -106,14 +75,24 @@ void Dispatcher::processTimetable(void)
     auto it = timetable.begin();
     while(it != timetable.end())
     {
-        auto task = it->second.task;
-
         if(it->first > timestamp)
         {
             /* Reached new head when tasks are not yet expired. */
             break;
         }
-        task->run();
+
+        /* Convert weak pointer to shared ptr */
+        auto task = it->second.task.lock();
+
+        if(task != nullptr)
+        {
+            task->run();
+        }
+        else
+        {
+            /* Dangled pointer: Invalidate task for deletion. */
+            it->second.period = NO_PERIOD;
+        }
         refreshTimestamp();
         it++;
     }
@@ -196,6 +175,17 @@ void Dispatcher::addTask(iTaskPtr task, dispatchTimestamp ms, bool periodic)
     interrupts_on();
 }
 
+Dispatcher& Dispatcher::get(void)
+{
+    interrupts_off();
+    if(instance == nullptr)
+    {
+        instance = new Dispatcher();
+    }
+    interrupts_on();
+    return *instance;
+}
+
 void Dispatcher::addTaskPeriodic(iTaskPtr task, dispatchTimestamp ms)
 {
     addTask(task, ms, true);
@@ -213,7 +203,7 @@ bool Dispatcher::removeTask(iTaskPtr task)
     interrupts_off();
     for(auto it = timetable.begin(); it != timetable.end(); it++)
     {
-        if(it->second.task == task)
+        if(it->second.task.lock() == task.lock())
         {
             res = true;
             timetable.erase(it);

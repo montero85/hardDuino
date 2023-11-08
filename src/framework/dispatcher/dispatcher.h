@@ -38,22 +38,51 @@ public:
     **
     ** The method that gets executed when the dispatch timer expires.
     **/
-    virtual void run() const = 0;
+    virtual void run() = 0;
 };
 
 /*!    \brief Pointer type for iTasks.
 **
-** Shared pointers allows ownership of the task lifetime to be
-** shared among the Dispatcher and any creator/user of the concrete task
-** instance.
+** For simplification, Dispatcher doesn't have interest in
+** participating in lifetime management of the iTasks it stores.
 **/
-using iTaskPtr = std::shared_ptr<const iTask>;
+using iTaskPtr = std::weak_ptr<iTask>;
 
+/*!    \brief Dispatcher for tasks to run at specific time.
+**
+** This module wraps the C HAL timer to provide timed execution
+** of tasks. Tasks must implement the iTask interface.
+** Users can request the execution of tasks in a one-shot or
+** as in a periodic fashion.
+**
+** Dispatcher is a global facility: different modules will requests
+** execution of tasks always to the same dispatcher. Also, Dispatcher
+** requires exclusive access to the HAL timer.
+**
+** For this reason, it implements a Singleton. To avoid the inconvenience
+** of the pattern, user code can rely on ClockEvent module instead.
+** This keeps use of Dispatcher confined within its internal implementation
+** and provides timer facilities in a "per-instance" way.
+**/
 class Dispatcher
 {
 public:
-    Dispatcher();
-    ~Dispatcher();
+    ~Dispatcher() = default;
+    /** Singleton pattern: disable copy constructor/operator.
+     **/
+    Dispatcher(const Dispatcher &) = delete;
+    Dispatcher& operator=(const Dispatcher &) = delete;
+
+    /*!    \brief Get singleton instance of Dispatcher.
+    **
+    ** \return Reference to the unique Dispatcher object.
+    **
+    ** Lazily instantiate Dispatcher and return a reference to the
+    ** singleton instance.
+    **
+    ** Blocks interrupts for thread safety.
+    **/
+    static Dispatcher& get(void);
 
     /*!    \brief Add a periodic task to the time dispatcher.
     **
@@ -84,6 +113,8 @@ public:
     bool removeTask(iTaskPtr task);
 
 private:
+    static Dispatcher *instance;
+
     struct dispatchRecord
     {
         iTaskPtr task;
@@ -93,6 +124,9 @@ private:
     dispatchTimestamp headTimestamp;
     bool timerActive;
     std::map<dispatchTimestamp, dispatchRecord> timetable;
+    /** Constructor is private.
+     **/
+    Dispatcher(): timestamp{0}, headTimestamp{0}, timerActive{false} {};
     void addTask(iTaskPtr task, dispatchTimestamp ms, bool periodic);
     void refreshTimestamp(void);
     void updateHeadAndTimer(void);
@@ -102,19 +136,6 @@ private:
      **/
     friend class DispatcherUnitTest;
     friend void on_hal_timer_callback(void);
-};
-
-/*!    \brief HAL timer has already been grabbed.
-**
-** Exception raised when the HAL timer has already been grabbed.
-**/
-class HALTimerNotAvailable : public std::exception
-{
-public:
-    const char * what ()
-    {
-        return "All available HAL timers have been allocated to a dispatcher.";
-    }
 };
 
 /****************************************************************/
